@@ -1,0 +1,17 @@
+#%RAML 1.0
+title: INVENTORY
+version: v1
+protocols: [HTTPS]
+mediaType: [application/json]
+
+
+/shipment:
+  post:
+    body:
+      application/json:
+        examples:
+    responses:
+      200:
+        body:
+          application/json:
+            example:

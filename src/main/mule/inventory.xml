@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd">
+    <http:listener-config name="inventory-httpListenerConfig">
+        <http:listener-connection host="${listener.host}" port="${secure::listener.port}" />
+    </http:listener-config>
+    <apikit:config name="inventory-config" api="inventory.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <file:config name="File_Config" doc:name="File Config" doc:id="867fd3a3-0ead-4cd3-96cc-81be4d43d4ce" />
+	<configuration doc:name="Configuration" doc:id="02ab40c8-8590-4bed-9155-5f9824e783f4" defaultErrorHandler-ref="error-handlerError_Handler" />
+	<configuration-properties doc:name="Configuration properties" doc:id="69afa0a3-8747-4b39-b749-5a8e3cb76d3b" file="dev.properties" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="9bd601a8-3b7f-4485-9013-3e884f3a5b13" file="dev.properties" key="1234567890123456" />
+	<api-gateway:autodiscovery apiId="20744497" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="30db0d72-33a1-4fbf-b618-cf9a46b35f25" flowRef="inventory-main" />
+	<flow name="inventory-main">
+        <http:listener config-ref="inventory-httpListenerConfig" path="${listener.path}">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="inventory-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+	<flow name="post:\shipment:application\json:inventory-config">
+        <logger level="INFO" message='Data recevied form inventory shipment #[payload.supplies[0]."itemId"]' doc:name="info"/>
+		<logger level="DEBUG" doc:name="debug" doc:id="db089ca1-bacb-4f7f-9359-75fc6ad7e50d" message="source payload #[payload]" category="com.infy.inventory"/>
+		<choice doc:name="Choice" doc:id="85ba37b4-a182-4f67-a944-4317fcb4a858" >
+			<when expression='#[payload.supplies[0]."type" == "ONHAND"]'>
+				<ee:transform doc:name="mapping" doc:id="f6b48369-3d65-40ae-9957-02eb0a359433">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+     "itemId": payload.supplies[0].itemId,
+      "productClass":payload.supplies[0].productClass,
+      "unitOfMeasure":payload.supplies[0].unitOfMeasure,
+      "shipNode":payload.supplies[0].shipNode,
+      "type":payload.supplies[0]."type",
+      "eta":payload.supplies[0].eta,
+      "shipByDate":payload.supplies[0].shipByDate,
+      "changedQuantity":payload.supplies[0].changedQuantity,
+      "adjustmentReason":payload.supplies[0].adjustmentReason,
+      "sourceTs":payload.supplies[0].sourceTs
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<logger level="INFO" doc:name="info" doc:id="330f4785-842d-40e0-95b1-3ff9f5b02c34" message='Data responce form inventory shipment #[payload.supplies[0]."itemId"]' />
+				<logger level="INFO" doc:name="debug" doc:id="e78b0488-4b9f-4d66-a2c7-4fde13b1d305" message="source payload #[payload]"/>
+				<set-variable value="#[payload.adjustmentReason]" doc:name="define the adjustment value in variable" doc:id="bef7b692-6bcc-4d2e-af32-a462773430e2" variableName="filename"/>
+				<file:write doc:name="write value to adjustment" doc:id="1f337e3f-29dc-47ad-bb1a-dbbd04cff21b" path="#[p('path') ++ vars.filename ++ &quot;.json&quot;]" config-ref="File_Config"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="raiseing to define the value" doc:id="42e6c3d6-f37f-4411-9bb7-44939250acc5" message="invalid data raise an error "/>
+				<raise-error doc:name="Raise error" doc:id="904064bb-7069-4b4b-9656-923316edcbe3" type="INVALID:DATA" description="THE DATA IS INVALD"/>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="f2c2b64e-bae9-4ec6-8554-32056607c1a1" message='data flow is successfly #[payload."itemId"]'/>
+    </flow>
+</mule>
